@@ -67,26 +67,14 @@ if (!file.exists("output"))
     dir.create("output")
 }
 
-write.table(df, "output/tidy-data.txt", row.name=FALSE)
-
-if (file.exists("output/tidy-data-MeanValues.txt")) 
-  #Delete file if it exists
-  file.remove("output/tidy-data-MeanValues.txt")
-  
-for (i in 1:30)
+if (!require("reshape2"))
 {
-    for (activity in levels(df$activity))
-    {
-        write.table(activity,"output/tidy-data-MeanValues.txt", append=TRUE)
-
-        df2<-df[(df$subject==i & df$activity==activity),]
-        df2<- colMeans( subset(df2, select = -activity))
-        write.table(df2,"output/tidy-data-MeanValues.txt", append=TRUE)
-        
-    }
+    install.packages("reshape2")
 }
 
+library(reshape2)
+df.melted <- melt(df, id = c("subject", "activity"))
+df.mean <- dcast(df.melted, subject + activity ~ variable, mean)
 
-
-
-
+# Upload complete data set as a txt file created with write.table() using row.name=FALSE
+write.table(df.mean, file = "output/TidyDataSet-mean.txt", row.names = FALSE, quote = FALSE)
