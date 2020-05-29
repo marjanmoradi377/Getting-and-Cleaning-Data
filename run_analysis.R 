@@ -1,0 +1,92 @@
+#To run this script you need to remove download, data and output directories first
+
+#Create a temporary download folder
+if (!file.exists("download"))
+{
+    dir.create("download")
+}
+
+#Download file
+fileUrl <- "https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip"
+
+destFile <-"download/data.zip"
+download.file(fileUrl, destfile=destFile)
+
+#Unzip the file
+unzip(destFile)
+
+#Rename the data folder to data
+file.rename("UCI HAR Dataset", "data")
+#Install data.table package if it doesn't exist
+#if (!require("data.table"))
+#{
+#    install.packages("data.table")
+#}
+#library(data.table)
+#Tried to se fread for X_train and X_test for loading files faster,  but there was a bug in the package that didn't let the code run
+
+X_train <- read.table("data/train/X_train.txt", strip.white=TRUE)       
+y_train <- read.table("data/train/y_train.txt", strip.white=TRUE)               
+subject_train <- read.table("./data/train/subject_train.txt", strip.white=TRUE)   
+
+X_test <- read.table("data/test/X_test.txt", strip.white=TRUE)              
+y_test <- read.table("data/test/y_test.txt", strip.white=TRUE)               
+subject_test <- read.table("data/test/subject_test.txt", strip.white=TRUE)  
+
+features <- read.table("data/features.txt", strip.white=TRUE)   
+
+#Merging data into one single data frame
+mergedData <- rbind(X_train, X_test) 
+mergedData$labels <- rbind(y_train, y_test) 
+mergedData$subjects <- rbind(subject_train, subject_test) 
+
+#Adding column names
+colnames(mergedData) <- features$V2   
+
+#Loading 
+df <- mergedData[,grepl("mean()|std()", names(mergedData))]
+df <- cbind(subjects = rbind(subject_train, subject_test), labels = rbind(y_train, y_test), df)
+colnames(df)[1]<-"subject"
+colnames(df)[2]<-"activity"
+df<-df[order(df$subject, df$activity),]
+activity_names <- read.table("data/activity_labels.txt")
+
+
+#Adding activity name column
+if (!require("qdapTools"))
+{
+    install.packages("qdapTools")
+}
+library(qdapTools)
+df[,2] <- lookup(df[,2], activity_names, key.reassign = NULL,missing = NA) 
+
+#Creating the output directory and writtingtidy data into it
+
+if (!file.exists("output"))
+{
+    dir.create("output")
+}
+
+write.table(df, "output/tidy-data.txt", row.name=FALSE)
+
+if (file.exists("output/tidy-data-MeanValues.txt")) 
+  #Delete file if it exists
+  file.remove("output/tidy-data-MeanValues.txt")
+  
+for (i in 1:30)
+{
+    for (activity in levels(df$activity))
+    {
+        write.table(activity,"output/tidy-data-MeanValues.txt", append=TRUE)
+
+        df2<-df[(df$subject==i & df$activity==activity),]
+        df2<- colMeans( subset(df2, select = -activity))
+        write.table(df2,"output/tidy-data-MeanValues.txt", append=TRUE)
+        
+    }
+}
+
+
+
+
+
